@@ -24,13 +24,6 @@ app.use('/uploads', express.static(process.env.UPLOADS_DIR || path.join(__dirnam
 app.use('/admin', express.static(path.join(__dirname, 'public/admin')));
 app.use('/widget', express.static(path.join(__dirname, 'public/widget')));
 
-const submitLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 5,
-  message: { error: 'Muitas avaliações enviadas. Tente novamente em 1 hora.' }
-});
-
-app.post('/api/reviews', submitLimiter);
 app.use('/api/reviews', reviewsRouter);
 app.use('/api/admin', adminRouter);
 

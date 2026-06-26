@@ -3,7 +3,14 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
+const rateLimit = require('express-rate-limit');
 const { getDB } = require('../db');
+
+const submitLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: 'Muitas avaliações enviadas. Tente novamente em 1 hora.' }
+});
 
 const router = express.Router();
 
@@ -120,7 +127,7 @@ router.get('/summary', (req, res) => {
 });
 
 // POST /api/reviews
-router.post('/', (req, res) => {
+router.post('/', submitLimiter, (req, res) => {
   upload.array('photos', 5)(req, res, function(err) {
     if (err) {
       return res.status(400).json({ error: err.message || 'Erro no upload.' });
