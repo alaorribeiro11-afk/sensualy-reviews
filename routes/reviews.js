@@ -14,8 +14,20 @@ const submitLimiter = rateLimit({
 
 const router = express.Router();
 
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = process.env.UPLOADS_DIR || path.join(__dirname, '../uploads');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${uuidv4()}${ext}`);
+  }
+});
+
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
@@ -109,7 +121,7 @@ router.get('/summary', async (req, res) => {
 
 // POST /api/reviews
 router.post('/', (req, res) => {
-  upload.array('photos', 5)(req, res, function(err) {
+  upload.single('photo')(req, res, function(err) {
     if (err) return res.status(400).json({ error: err.message || 'Erro no upload.' });
     submitLimiter(req, res, function() {
       handlePost(req, res);
@@ -119,37 +131,24 @@ router.post('/', (req, res) => {
 
 async function handlePost(req, res) {
   const { product_id, author_name, rating, comment } = req.body;
-  const files = req.files || [];
-  const cleanup = () => {};
+  const file = req.file || null;
 
   if (!product_id || !author_name || !rating || !comment) {
-    cleanup();
+    if (file) try { fs.unlinkSync(file.path); } catch(e) {}
     return res.status(400).json({ error: 'Campos obrigatórios: product_id, author_name, rating, comment' });
   }
   const ratingNum = parseInt(rating);
-  if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) { cleanup(); return res.status(400).json({ error: 'Rating deve ser entre 1 e 5' }); }
-  if (author_name.trim().length < 2 || author_name.trim().length > 80) { cleanup(); return res.status(400).json({ error: 'Nome deve ter entre 2 e 80 caracteres' }); }
-  if (comment.trim().length < 10 || comment.trim().length > 1000) { cleanup(); return res.status(400).json({ error: 'Depoimento deve ter entre 10 e 1000 caracteres' }); }
+  if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) { if (file) try { fs.unlinkSync(file.path); } catch(e) {} return res.status(400).json({ error: 'Rating deve ser entre 1 e 5' }); }
+  if (author_name.trim().length < 2 || author_name.trim().length > 80) { if (file) try { fs.unlinkSync(file.path); } catch(e) {} return res.status(400).json({ error: 'Nome deve ter entre 2 e 80 caracteres' }); }
+  if (comment.trim().length < 10 || comment.trim().length > 1000) { if (file) try { fs.unlinkSync(file.path); } catch(e) {} return res.status(400).json({ error: 'Depoimento deve ter entre 10 e 1000 caracteres' }); }
 
-  const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, '../uploads');
-  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-
-  const savedFiles = [];
-  for (const f of files) {
-    const ext = path.extname(f.originalname).toLowerCase();
-    const filename = `${uuidv4()}${ext}`;
-    const filepath = path.join(uploadsDir, filename);
-    fs.writeFileSync(filepath, f.buffer);
-    savedFiles.push(filename);
-  }
-
-  const photoJson = savedFiles.length > 0 ? JSON.stringify(savedFiles) : null;
+  const photoFilename = file ? file.filename : null;
 
   try {
     const db = getDB();
     const result = await db.execute({
       sql: `INSERT INTO reviews (product_id, author_name, rating, comment, photo_url) VALUES (?, ?, ?, ?, ?)`,
-      args: [product_id.trim(), author_name.trim(), ratingNum, comment.trim(), photoJson]
+      args: [product_id.trim(), author_name.trim(), ratingNum, comment.trim(), photoFilename]
     });
     res.status(201).json({
       success: true,
@@ -157,6 +156,7 @@ async function handlePost(req, res) {
       id: Number(result.lastInsertRowid)
     });
   } catch(err) {
+    if (file) try { fs.unlinkSync(file.path); } catch(e) {}
     console.error(err);
     res.status(500).json({ error: 'Erro ao salvar avaliação.' });
   }

@@ -14,186 +14,107 @@
 
   var styles = '#sensualy-reviews-widget *{box-sizing:border-box;font-family:sans-serif}#sensualy-reviews-widget{max-width:900px;margin:40px auto;padding:0 16px;color:#1a1a2e}.sr-section-title{font-size:22px;font-weight:700;color:#1a1a2e;margin-bottom:24px;border-bottom:2px solid #e91e8c;padding-bottom:10px}.sr-summary{display:flex;align-items:center;gap:32px;background:#fff0f7;border-radius:16px;padding:24px 32px;margin-bottom:32px;flex-wrap:wrap}.sr-score-big{font-size:64px;font-weight:900;color:#e91e8c;line-height:1}.sr-stars-display{display:flex;gap:4px;margin:6px 0}.sr-star{font-size:22px}.sr-star.filled{color:#f4a800}.sr-star.empty{color:#ddd}.sr-total-label{font-size:13px;color:#888;margin-top:4px}.sr-breakdown{flex:1;min-width:160px}.sr-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px}.sr-bar-label{width:14px;text-align:right;color:#555}.sr-bar-track{flex:1;height:8px;background:#f0d0e6;border-radius:999px;overflow:hidden}.sr-bar-fill{height:100%;background:#e91e8c;border-radius:999px}.sr-bar-count{width:20px;color:#888}.sr-form-card{background:#fff;border:1px solid #f0d0e6;border-radius:16px;padding:28px;margin-bottom:32px}.sr-form-title{font-size:17px;font-weight:700;color:#1a1a2e;margin-bottom:20px}.sr-field{margin-bottom:16px}.sr-label{display:block;font-size:13px;font-weight:600;color:#555;margin-bottom:6px}.sr-input,.sr-textarea{width:100%;padding:10px 14px;border:1.5px solid #e0c0d8;border-radius:8px;font-size:14px;outline:none}.sr-input:focus,.sr-textarea:focus{border-color:#e91e8c}.sr-textarea{resize:vertical;min-height:90px}.sr-stars-input{display:flex;gap:6px;margin-top:4px}.sr-star-input{font-size:30px;color:#ddd;cursor:pointer;user-select:none}.sr-star-input.active{color:#f4a800}.sr-photo-label{display:flex;align-items:center;gap:10px;border:1.5px dashed #e0c0d8;border-radius:8px;padding:12px 16px;cursor:pointer;background:#fff8fc;font-size:13px;color:#888}.sr-photo-icon{font-size:20px}.sr-photo-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.sr-photo-thumb{width:80px;height:80px;object-fit:cover;border-radius:8px;cursor:pointer;border:1px solid #f0d0e6}.sr-submit-btn{width:100%;padding:13px;background:#e91e8c;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer}.sr-submit-btn:disabled{background:#ccc}.sr-msg{padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:14px;display:none}.sr-msg.success{background:#e6f9ee;color:#1a7f3c}.sr-msg.error{background:#fdeaea;color:#c0392b}.sr-review-card{background:#fff;border:1px solid #f0d0e6;border-radius:14px;padding:20px 24px;margin-bottom:16px}.sr-review-header{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}.sr-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#e91e8c,#f472b6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;flex-shrink:0}.sr-review-meta{flex:1}.sr-review-author{font-weight:700;font-size:15px;color:#1a1a2e}.sr-review-date{font-size:12px;color:#aaa;margin-top:2px}.sr-review-stars{display:flex;gap:2px}.sr-review-text{font-size:14px;color:#444;line-height:1.6;margin-bottom:12px}.sr-review-photos{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}.sr-review-photo{width:120px;height:120px;object-fit:cover;border-radius:10px;cursor:pointer;border:1px solid #f0d0e6}.sr-pagination{display:flex;justify-content:center;gap:8px;margin-top:24px;flex-wrap:wrap}.sr-page-btn{padding:8px 16px;border:1.5px solid #e91e8c;border-radius:8px;background:#fff;color:#e91e8c;cursor:pointer;font-size:14px;font-weight:600}.sr-page-btn.active{background:#e91e8c;color:#fff}.sr-lightbox{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:99999;justify-content:center;align-items:center}.sr-lightbox.open{display:flex}.sr-lightbox img{max-width:90vw;max-height:90vh;border-radius:12px}.sr-lightbox-close{position:absolute;top:20px;right:28px;color:#fff;font-size:36px;cursor:pointer}.sr-empty{text-align:center;padding:32px;color:#aaa;font-size:15px}@media(max-width:600px){.sr-summary{padding:16px;gap:16px}.sr-score-big{font-size:48px}.sr-form-card{padding:18px}}';
 
-  function injectStyles() {
-    if (document.getElementById('sr-styles')) return;
-    var s = document.createElement('style');
-    s.id = 'sr-styles';
-    s.textContent = styles;
-    document.head.appendChild(s);
-  }
+  function injectStyles(){if(document.getElementById('sr-styles'))return;var s=document.createElement('style');s.id='sr-styles';s.textContent=styles;document.head.appendChild(s);}
+  function starsHTML(r){var h='';for(var i=1;i<=5;i++)h+='<span class="sr-star '+(i<=r?'filled':'empty')+'">★</span>';return h;}
+  function formatDate(d){return new Date(d).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'});}
+  function escapeHTML(str){return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\n/g,'<br>');}
 
-  function starsHTML(rating) {
-    var h = '';
-    for (var i = 1; i <= 5; i++) h += '<span class="sr-star ' + (i <= rating ? 'filled' : 'empty') + '">★</span>';
-    return h;
-  }
+  function renderSummary(stats){var avg=stats.average||0,total=stats.total||0,bd=stats.breakdown||{},bars='';for(var i=5;i>=1;i--){var c=bd[i]||0,pct=total>0?Math.round(c/total*100):0;bars+='<div class="sr-bar-row"><span class="sr-bar-label">'+i+'</span><span class="sr-star filled" style="font-size:13px">★</span><div class="sr-bar-track"><div class="sr-bar-fill" style="width:'+pct+'%"></div></div><span class="sr-bar-count">'+c+'</span></div>';}return'<div class="sr-summary"><div style="text-align:center"><div class="sr-score-big">'+(avg>0?avg.toFixed(1):'—')+'</div><div class="sr-stars-display">'+starsHTML(Math.round(avg))+'</div><div class="sr-total-label">'+total+' avaliação'+(total!==1?'ões':'')+'</div></div><div class="sr-breakdown">'+bars+'</div></div>';}
 
-  function formatDate(d) {
-    return new Date(d).toLocaleDateString('pt-BR', {day:'2-digit',month:'short',year:'numeric'});
-  }
+  function renderReviews(reviews){if(!reviews.length)return'<div class="sr-empty">Nenhuma avaliação ainda. Seja o primeiro! 🌟</div>';return reviews.map(function(r){var initial=r.author_name.trim()[0].toUpperCase();var pA=r.photos&&r.photos.length?r.photos:(r.photo_url?[r.photo_url]:[]);var photosHtml=pA.length?'<div class="sr-review-photos">'+pA.map(function(u){return'<img class="sr-review-photo" src="'+u+'" onclick="window.__srLB(\''+u+'\')" alt=""/>';}).join('')+'</div>':'';return'<div class="sr-review-card"><div class="sr-review-header"><div class="sr-avatar">'+initial+'</div><div class="sr-review-meta"><div class="sr-review-author">'+escapeHTML(r.author_name)+'</div><div class="sr-review-date">'+formatDate(r.created_at)+'</div></div><div class="sr-review-stars">'+starsHTML(r.rating)+'</div></div><div class="sr-review-text">'+escapeHTML(r.comment)+'</div>'+photosHtml+'</div>';}).join('');}
 
-  function escapeHTML(str) {
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\n/g,'<br>');
-  }
-
-  function renderSummary(stats) {
-    var avg = stats.average || 0, total = stats.total || 0, bd = stats.breakdown || {};
-    var bars = '';
-    for (var i = 5; i >= 1; i--) {
-      var c = bd[i] || 0, pct = total > 0 ? Math.round(c/total*100) : 0;
-      bars += '<div class="sr-bar-row"><span class="sr-bar-label">'+i+'</span><span class="sr-star filled" style="font-size:13px">★</span><div class="sr-bar-track"><div class="sr-bar-fill" style="width:'+pct+'%"></div></div><span class="sr-bar-count">'+c+'</span></div>';
-    }
-    return '<div class="sr-summary"><div style="text-align:center"><div class="sr-score-big">'+(avg>0?avg.toFixed(1):'—')+'</div><div class="sr-stars-display">'+starsHTML(Math.round(avg))+'</div><div class="sr-total-label">'+total+' avaliação'+(total!==1?'ões':'')+'</div></div><div class="sr-breakdown">'+bars+'</div></div>';
-  }
-
-  function renderReviews(reviews) {
-    if (!reviews.length) return '<div class="sr-empty">Nenhuma avaliação ainda. Seja o primeiro! 🌟</div>';
-    return reviews.map(function(r) {
-      var initial = r.author_name.trim()[0].toUpperCase();
-      var pA=r.photos&&r.photos.length?r.photos:(r.photo_url?[r.photo_url]:[]);
-      var photosHtml=pA.length?'<div class="sr-review-photos">'+pA.map(function(u){return'<img class="sr-review-photo" src="'+u+'" onclick="window.__srLB(\''+u+'\')" alt=""/>';}).join('')+'</div>':'';
-      return '<div class="sr-review-card"><div class="sr-review-header"><div class="sr-avatar">'+initial+'</div><div class="sr-review-meta"><div class="sr-review-author">'+escapeHTML(r.author_name)+'</div><div class="sr-review-date">'+formatDate(r.created_at)+'</div></div><div class="sr-review-stars">'+starsHTML(r.rating)+'</div></div><div class="sr-review-text">'+escapeHTML(r.comment)+'</div>'+photosHtml+'</div>';
-    }).join('');
-  }
-
-  function renderPagination(page, total) {
-    var tp = Math.ceil(total / LIMIT);
-    if (tp <= 1) return '';
-    var h = '<div class="sr-pagination">';
-    if (page > 1) h += '<button class="sr-page-btn" onclick="window.__srPage('+(page-1)+')">← Anterior</button>';
-    for (var i = Math.max(1,page-2); i <= Math.min(tp,page+2); i++) h += '<button class="sr-page-btn'+(i===page?' active':'')+'" onclick="window.__srPage('+i+')">'+i+'</button>';
-    if (page < tp) h += '<button class="sr-page-btn" onclick="window.__srPage('+(page+1)+')">Próxima →</button>';
-    return h + '</div>';
-  }
+  function renderPagination(page,total){var tp=Math.ceil(total/LIMIT);if(tp<=1)return'';var h='<div class="sr-pagination">';if(page>1)h+='<button class="sr-page-btn" onclick="window.__srPage('+(page-1)+')">← Anterior</button>';for(var i=Math.max(1,page-2);i<=Math.min(tp,page+2);i++)h+='<button class="sr-page-btn'+(i===page?' active':'')+'" onclick="window.__srPage('+i+')">'+i+'</button>';if(page<tp)h+='<button class="sr-page-btn" onclick="window.__srPage('+(page+1)+')">Próxima →</button>';return h+'</div>';}
 
   function showMsg(text,type){var el=document.getElementById('sr-form-msg');if(!el)return;el.textContent=text;el.className='sr-msg '+type;el.style.display='block';if(type==='success')setTimeout(function(){el.style.display='none';},6000);}
 
-  function bindForm() {
-    var sel = 0;
-    var stars=document.querySelectorAll('.sr-star-input');
-    var hi=function(v){stars.forEach(function(x){x.classList.toggle('active',parseInt(x.dataset.v)<=v);});};
-    stars.forEach(function(s){s.addEventListener('mouseover',function(){hi(parseInt(this.dataset.v));});s.addEventListener('mouseout',function(){hi(sel);});s.addEventListener('click',function(){sel=parseInt(this.dataset.v);hi(sel);});});
+  function injectMiniStars(s){if(document.getElementById('sr-mini'))return;var a=s.average||0,t=s.total||0;if(!t)return;var h='<div id="sr-mini" style="display:flex;align-items:center;gap:5px;margin:4px 0 8px;cursor:pointer" onclick="document.getElementById(\'sensualy-reviews-widget\').scrollIntoView({behavior:\'smooth\'})">'+'<span style="font-size:16px;color:#f4a800">'+'\u2605'.repeat(Math.round(a))+'</span><span style="font-size:13px;font-weight:700;color:#e91e8c">'+a.toFixed(1)+'</span><span style="font-size:12px;color:#999">('+t+')</span></div>';var ti=document.querySelector('h1,.titulo-produto,[itemprop="name"]');if(ti)ti.insertAdjacentHTML('afterend',h);}
 
-    var photoInput = document.getElementById('sr-photo');
-    var photoGrid = document.getElementById('sr-photo-grid');
-    var photoName = document.getElementById('sr-photo-name');
-    photoInput.addEventListener('change',function(){
-      var files=Array.from(this.files);photoGrid.innerHTML='';
-      if(!files.length){photoName.textContent='Clique para adicionar fotos';return;}
-      photoName.textContent=files.length+' foto(s)';
-      files.forEach(function(f){var fr=new FileReader();fr.onload=function(e){var i=document.createElement('img');i.src=e.target.result;i.className='sr-photo-thumb';photoGrid.appendChild(i);};fr.readAsDataURL(f);});
-    });
-
-    document.getElementById('sr-submit-btn').addEventListener('click', function() {
-      var author = document.getElementById('sr-author').value.trim();
-      var comment = document.getElementById('sr-comment').value.trim();
-      var photos = Array.from(document.getElementById('sr-photo').files);
-      if (!author) return showMsg('Por favor, informe seu nome.', 'error');
-      if (!sel) return showMsg('Por favor, selecione uma nota de 1 a 5 estrelas.', 'error');
-      if (comment.length < 10) return showMsg('O depoimento deve ter pelo menos 10 caracteres.', 'error');
-
-      var btn = document.getElementById('sr-submit-btn');
-      btn.disabled = true; btn.textContent = 'Enviando...';
-
-      var fd = new FormData();
-      fd.append('product_id', PRODUCT_ID);
-      fd.append('author_name', author);
-      fd.append('rating', sel);
-      fd.append('comment', comment);
-      photos.forEach(function(f){ fd.append('photos', f); });
-
-      fetch(API_BASE + '/api/reviews', { method:'POST', body:fd })
-        .then(function(r){ return r.json(); })
-        .then(function(d) {
-          if(d.success){
-            showMsg('✅ '+d.message,'success');
-            document.getElementById('sr-author').value='';
-            document.getElementById('sr-comment').value='';
-            document.getElementById('sr-photo').value='';
-            photoGrid.innerHTML='';photoName.textContent='Clique para adicionar fotos';
-            sel=0;stars.forEach(function(x){x.classList.remove('active');});
-          }else{showMsg('❌'+(d.error||'Erro ao enviar.'),'error');}
-        })
-        .catch(function(){ showMsg('❌ Erro de conexão. Tente novamente.', 'error'); })
-        .finally(function(){ btn.disabled=false; btn.textContent='Enviar Avaliação'; });
-    });
-  }
-
-  function loadPage(page){currentPage=page;var listEl=document.getElementById('sr-list');if(!listEl)return;listEl.innerHTML='<div class="sr-empty">Carregando...</div>';fetch(API_BASE+'/api/reviews?product_id='+encodeURIComponent(PRODUCT_ID)+'&page='+page+'&limit='+LIMIT).then(function(r){return r.json();}).then(function(d){totalReviews=d.stats.total;listEl.innerHTML=renderReviews(d.reviews)+renderPagination(page,totalReviews);var s=document.getElementById('sr-summary-container');if(s)s.innerHTML=renderSummary(d.stats);}).catch(function(){listEl.innerHTML='<div class="sr-empty">Erro ao carregar.</div>';});}
+  function loadPage(page){currentPage=page;var listEl=document.getElementById('sr-list');if(!listEl)return;listEl.innerHTML='<div class="sr-empty">Carregando...</div>';fetch(API_BASE+'/api/reviews?product_id='+encodeURIComponent(PRODUCT_ID)+'&page='+page+'&limit='+LIMIT).then(function(r){return r.json();}).then(function(d){totalReviews=d.stats.total;listEl.innerHTML=renderReviews(d.reviews)+renderPagination(page,totalReviews);var s=document.getElementById('sr-summary-container');if(s)s.innerHTML=renderSummary(d.stats);if(page===1)injectMiniStars(d.stats);}).catch(function(){listEl.innerHTML='<div class="sr-empty">Erro ao carregar.</div>';});}
 
   window.__srPage=loadPage;window.__srLB=function(url){var lb=document.getElementById('sr-lightbox');if(!lb)return;lb.querySelector('img').src=url;lb.classList.add('open');};
 
-  function init() {
+  function bindForm(){
+    var sel=0;
+    var stars=document.querySelectorAll('.sr-star-input');
+    var hi=function(v){stars.forEach(function(x){x.classList.toggle('active',parseInt(x.dataset.v)<=v);});};
+    stars.forEach(function(s){s.addEventListener('mouseover',function(){hi(parseInt(this.dataset.v));});s.addEventListener('mouseout',function(){hi(sel);});s.addEventListener('click',function(){sel=parseInt(this.dataset.v);hi(sel);});});
+    var photoInput=document.getElementById('sr-photo');
+    var photoGrid=document.getElementById('sr-photo-grid');
+    var photoName=document.getElementById('sr-photo-name');
+    photoInput.addEventListener('change',function(){var files=Array.from(this.files);photoGrid.innerHTML='';if(!files.length){photoName.textContent='Clique para adicionar fotos';return;}photoName.textContent=files.length+' foto(s)';files.forEach(function(f){var fr=new FileReader();fr.onload=function(e){var i=document.createElement('img');i.src=e.target.result;i.className='sr-photo-thumb';photoGrid.appendChild(i);};fr.readAsDataURL(f);});});
+    document.getElementById('sr-submit-btn').addEventListener('click',function(){
+      var author=document.getElementById('sr-author').value.trim();
+      var comment=document.getElementById('sr-comment').value.trim();
+      var photos=Array.from(document.getElementById('sr-photo').files);
+      if(!author)return showMsg('Informe seu nome.','error');
+      if(!sel)return showMsg('Selecione uma nota.','error');
+      if(comment.length<10)return showMsg('Depoimento muito curto.','error');
+      var btn=document.getElementById('sr-submit-btn');
+      btn.disabled=true;btn.textContent='Enviando...';
+      function mkFd(){var fd=new FormData();fd.append('product_id',PRODUCT_ID);fd.append('author_name',author);fd.append('rating',sel);fd.append('comment',comment);if(photos.length>0)fd.append('photo',photos[0]);return fd;}
+      function done(){btn.disabled=false;btn.textContent='Enviar Avaliação';}
+      function go(n){fetch(API_BASE+'/api/reviews',{method:'POST',body:mkFd()}).then(function(r){return r.json().then(function(d){return{s:r.status,d:d};});}).then(function(x){if(x.s===429){showMsg('❌ Limite de envios.','error');done();return;}if(x.d.success){showMsg(x.d.message,'success');document.getElementById('sr-author').value='';document.getElementById('sr-comment').value='';document.getElementById('sr-photo').value='';photoGrid.innerHTML='';photoName.textContent='Clique para adicionar fotos';sel=0;stars.forEach(function(s){s.classList.remove('active');});done();}else{showMsg('❌ '+(x.d.error||'Erro.'),'error');done();}}).catch(function(){if(n<3){btn.textContent='...';setTimeout(function(){go(n+1);},8000);}else{showMsg('Erro conexão','error');done();}});}
+      go(1);
+    });
+  }
+
+  function init(){
     injectStyles();
-    var container = document.getElementById(CONTAINER_ID);
-    if (!container) return;
-
-    container.innerHTML =
-      '<h2 class="sr-section-title">⭐ Avaliações dos Clientes</h2>' +
-      '<div id="sr-summary-container"></div>' +
-      '<h3 class="sr-section-title" style="font-size:17px;margin-top:0">Avaliações</h3>' +
-      '<div id="sr-list"><div class="sr-empty">Carregando...</div></div>' +
-      '<div class="sr-form-card">' +
-        '<div class="sr-form-title">✍️ Deixe sua avaliação</div>' +
-        '<div class="sr-msg" id="sr-form-msg"></div>' +
-        '<div class="sr-field"><label class="sr-label">Seu nome *</label><input class="sr-input" id="sr-author" type="text" placeholder="Ex: Maria S." maxlength="80"/></div>' +
-        '<div class="sr-field"><label class="sr-label">Nota *</label><div class="sr-stars-input" id="sr-star-input"><span class="sr-star-input" data-v="1">★</span><span class="sr-star-input" data-v="2">★</span><span class="sr-star-input" data-v="3">★</span><span class="sr-star-input" data-v="4">★</span><span class="sr-star-input" data-v="5">★</span></div></div>' +
-        '<div class="sr-field"><label class="sr-label">Depoimento *</label><textarea class="sr-textarea" id="sr-comment" placeholder="Conte sua experiência com o produto..." maxlength="1000"></textarea></div>' +
-        '<div class="sr-field"><label class="sr-label">Fotos (opcional, até 5)</label><label class="sr-photo-label" for="sr-photo"><span class="sr-photo-icon">📷</span><span id="sr-photo-name">Clique para adicionar fotos</span></label><input type="file" id="sr-photo" accept="image/*" multiple style="display:none"/><div id="sr-photo-grid" class="sr-photo-grid"></div></div>' +
-        '<button class="sr-submit-btn" id="sr-submit-btn">Enviar Avaliação</button>' +
-      '</div>' +
+    var container=document.getElementById(CONTAINER_ID);
+    if(!container)return;
+    container.innerHTML=
+      '<h2 class="sr-section-title">⭐ Avaliações dos Clientes</h2>'+
+      '<div id="sr-summary-container"></div>'+
+      '<h3 class="sr-section-title" style="font-size:17px;margin-top:0">Avaliações</h3>'+
+      '<div id="sr-list"><div class="sr-empty">Carregando...</div></div>'+
+      '<div class="sr-form-card">'+
+        '<div class="sr-form-title">✍️ Deixe sua avaliação</div>'+
+        '<div class="sr-msg" id="sr-form-msg"></div>'+
+        '<div class="sr-field"><label class="sr-label">Seu nome *</label><input class="sr-input" id="sr-author" type="text" placeholder="Ex: Maria S." maxlength="80"/></div>'+
+        '<div class="sr-field"><label class="sr-label">Nota *</label><div class="sr-stars-input" id="sr-star-input"><span class="sr-star-input" data-v="1">★</span><span class="sr-star-input" data-v="2">★</span><span class="sr-star-input" data-v="3">★</span><span class="sr-star-input" data-v="4">★</span><span class="sr-star-input" data-v="5">★</span></div></div>'+
+        '<div class="sr-field"><label class="sr-label">Depoimento *</label><textarea class="sr-textarea" id="sr-comment" placeholder="Conte sua experiência com o produto..." maxlength="1000"></textarea></div>'+
+        '<div class="sr-field"><label class="sr-label">Foto (opcional)</label><label class="sr-photo-label" for="sr-photo"><span class="sr-photo-icon">📷</span><span id="sr-photo-name">Clique para adicionar fotos</span></label><input type="file" id="sr-photo" accept="image/*" style="display:none"/><div id="sr-photo-grid" class="sr-photo-grid"></div></div>'+
+        '<button class="sr-submit-btn" id="sr-submit-btn">Enviar Avaliação</button>'+
+      '</div>'+
       '<div id="sr-lightbox" class="sr-lightbox"><span class="sr-lightbox-close" onclick="document.getElementById(\'sr-lightbox\').classList.remove(\'open\')">✕</span><img src="" alt=""/></div>';
-
     bindForm();loadPage(1);
   }
 
-  function reposition() {
-    var widget = document.getElementById(CONTAINER_ID);
-    if (!widget) return;
-
-    var seletores = [
+  function reposition(){
+    var w=document.getElementById(CONTAINER_ID);
+    if(!w)return;
+    var sels=[
+      '.descricao-produto',
+      '#descricao-produto',
       '.product-description',
       '#product-description',
-      '.description',
-      '#description',
-      '[class*="descri"]',
-      '.product-detail',
-      '.product-info',
-      '.product-content',
-      '.product-body',
+      '[class*="descricao"]',
+      '[class*="description"]',
       '[itemprop="description"]',
-      '.tab-content',
-      '.product-tabs'
+      '.info-produto',
+      '#info-produto',
+      '[class*="info-produto"]',
+      '.product-info',
+      '.product-detail',
+      '.conteudo-produto',
+      '[class*="conteudo-produto"]',
+      '.detalhe-produto',
+      '[class*="detalhe"]'
     ];
-
-    var alvo = null;
-    for (var i = 0; i < seletores.length; i++) {
-      var el = document.querySelector(seletores[i]);
-      if (el && el !== widget && !el.contains(widget)) {
-        alvo = el;
-        break;
-      }
-    }
-
-    if (alvo) {
-      alvo.parentNode.insertBefore(widget, alvo.nextSibling);
-    } else {
-      var footer = document.querySelector('footer,#footer,.footer');
-      if (footer) {
-        footer.parentNode.insertBefore(widget, footer);
+    for(var i=0;i<sels.length;i++){
+      var el=document.querySelector(sels[i]);
+      if(el&&!el.contains(w)&&el!==w){
+        el.parentNode.insertBefore(w,el.nextSibling);
+        return;
       }
     }
   }
 
-  function initAndPosition() {
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',function(){init();setTimeout(reposition,300);});
+  }else{
     init();
-    reposition();
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initAndPosition);
-  } else {
-    initAndPosition();
+    setTimeout(reposition,300);
   }
 })();
 </script>
