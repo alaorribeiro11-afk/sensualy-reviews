@@ -14,19 +14,8 @@ const submitLimiter = rateLimit({
 
 const router = express.Router();
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = process.env.UPLOADS_DIR || path.join(__dirname, '../uploads');
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${uuidv4()}${ext}`);
-  }
-});
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
@@ -119,17 +108,19 @@ router.get('/summary', async (req, res) => {
 });
 
 // POST /api/reviews
-router.post('/', submitLimiter, (req, res) => {
+router.post('/', (req, res) => {
   upload.array('photos', 5)(req, res, function(err) {
     if (err) return res.status(400).json({ error: err.message || 'Erro no upload.' });
-    handlePost(req, res);
+    submitLimiter(req, res, function() {
+      handlePost(req, res);
+    });
   });
 });
 
 async function handlePost(req, res) {
   const { product_id, author_name, rating, comment } = req.body;
   const files = req.files || [];
-  const cleanup = () => files.forEach(f => { try { fs.unlinkSync(f.path); } catch(e){} });
+  const cleanup = () => {};
 
   if (!product_id || !author_name || !rating || !comment) {
     cleanup();
@@ -140,7 +131,19 @@ async function handlePost(req, res) {
   if (author_name.trim().length < 2 || author_name.trim().length > 80) { cleanup(); return res.status(400).json({ error: 'Nome deve ter entre 2 e 80 caracteres' }); }
   if (comment.trim().length < 10 || comment.trim().length > 1000) { cleanup(); return res.status(400).json({ error: 'Depoimento deve ter entre 10 e 1000 caracteres' }); }
 
-  const photoJson = files.length > 0 ? JSON.stringify(files.map(f => f.filename)) : null;
+  const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, '../uploads');
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+  const savedFiles = [];
+  for (const f of files) {
+    const ext = path.extname(f.originalname).toLowerCase();
+    const filename = `${uuidv4()}${ext}`;
+    const filepath = path.join(uploadsDir, filename);
+    fs.writeFileSync(filepath, f.buffer);
+    savedFiles.push(filename);
+  }
+
+  const photoJson = savedFiles.length > 0 ? JSON.stringify(savedFiles) : null;
 
   try {
     const db = getDB();
@@ -154,7 +157,6 @@ async function handlePost(req, res) {
       id: Number(result.lastInsertRowid)
     });
   } catch(err) {
-    cleanup();
     console.error(err);
     res.status(500).json({ error: 'Erro ao salvar avaliação.' });
   }
