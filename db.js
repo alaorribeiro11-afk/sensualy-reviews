@@ -1,25 +1,31 @@
-const Database = require('better-sqlite3');
+const { createClient } = require('@libsql/client');
 const path = require('path');
 const fs = require('fs');
 
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
-const DB_PATH = path.join(DATA_DIR, 'reviews.db');
+let _db = null;
 
-function initDB() {
-  const dataDir = DATA_DIR;
-  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+function getDB() {
+  if (!_db) {
+    _db = createClient({
+      url: process.env.TURSO_URL,
+      authToken: process.env.TURSO_TOKEN,
+    });
+  }
+  return _db;
+}
 
+async function initDB() {
   const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
   const db = getDB();
 
-  db.exec(`
+  await db.executeMultiple(`
     CREATE TABLE IF NOT EXISTS reviews (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       product_id  TEXT    NOT NULL,
       author_name TEXT    NOT NULL,
-      rating      INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
+      rating      INTEGER NOT NULL,
       comment     TEXT    NOT NULL,
       photo_url   TEXT,
       approved    INTEGER NOT NULL DEFAULT 0,
@@ -34,12 +40,7 @@ function initDB() {
     );
   `);
 
-  const adminExists = db.prepare("SELECT COUNT(*) as c FROM admin_sessions").get();
-  console.log('Banco de dados inicializado.');
-}
-
-function getDB() {
-  return new Database(DB_PATH);
+  console.log('Banco de dados Turso inicializado.');
 }
 
 module.exports = { initDB, getDB };

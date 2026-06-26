@@ -8,7 +8,7 @@ const { getDB } = require('../db');
 
 const submitLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 5,
+  max: 20,
   message: { error: 'Muitas avaliações enviadas. Tente novamente em 1 hora.' }
 });
 
@@ -40,142 +40,124 @@ const upload = multer({
 });
 
 // GET /api/reviews?product_id=xxx&page=1&limit=10
-router.get('/', (req, res) => {
-  const { product_id, page = 1, limit = 10 } = req.query;
-  if (!product_id) return res.status(400).json({ error: 'product_id é obrigatório' });
+router.get('/', async (req, res) => {
+  try {
+    const { product_id, page = 1, limit = 10 } = req.query;
+    if (!product_id) return res.status(400).json({ error: 'product_id é obrigatório' });
 
-  const db = getDB();
-  const offset = (parseInt(page) - 1) * parseInt(limit);
+    const db = getDB();
+    const offset = (parseInt(page) - 1) * parseInt(limit);
 
-  const reviews = db.prepare(`
-    SELECT id, author_name, rating, comment, photo_url, created_at
-    FROM reviews
-    WHERE product_id = ? AND approved = 1
-    ORDER BY created_at DESC
-    LIMIT ? OFFSET ?
-  `).all(product_id, parseInt(limit), offset);
+    const [reviewsRes, statsRes] = await Promise.all([
+      db.execute({
+        sql: `SELECT id, author_name, rating, comment, photo_url, created_at FROM reviews WHERE product_id = ? AND approved = 1 ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+        args: [product_id, parseInt(limit), offset]
+      }),
+      db.execute({
+        sql: `SELECT COUNT(*) as total, ROUND(AVG(rating),1) as average, SUM(CASE WHEN rating=5 THEN 1 ELSE 0 END) as r5, SUM(CASE WHEN rating=4 THEN 1 ELSE 0 END) as r4, SUM(CASE WHEN rating=3 THEN 1 ELSE 0 END) as r3, SUM(CASE WHEN rating=2 THEN 1 ELSE 0 END) as r2, SUM(CASE WHEN rating=1 THEN 1 ELSE 0 END) as r1 FROM reviews WHERE product_id = ? AND approved = 1`,
+        args: [product_id]
+      })
+    ]);
 
-  const stats = db.prepare(`
-    SELECT COUNT(*) as total,
-           ROUND(AVG(rating), 1) as average,
-           SUM(CASE WHEN rating = 5 THEN 1 ELSE 0 END) as r5,
-           SUM(CASE WHEN rating = 4 THEN 1 ELSE 0 END) as r4,
-           SUM(CASE WHEN rating = 3 THEN 1 ELSE 0 END) as r3,
-           SUM(CASE WHEN rating = 2 THEN 1 ELSE 0 END) as r2,
-           SUM(CASE WHEN rating = 1 THEN 1 ELSE 0 END) as r1
-    FROM reviews
-    WHERE product_id = ? AND approved = 1
-  `).get(product_id);
-
-  const BASE_URL = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
-
-  const reviewsWithUrls = reviews.map(r => {
-    let photos = [];
-    if (r.photo_url) {
-      try {
-        const parsed = JSON.parse(r.photo_url);
-        photos = Array.isArray(parsed) ? parsed.map(f => `${BASE_URL}/uploads/${f}`) : [`${BASE_URL}/uploads/${r.photo_url}`];
-      } catch(e) {
-        photos = [`${BASE_URL}/uploads/${r.photo_url}`];
+    const BASE_URL = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+    const reviews = reviewsRes.rows.map(r => {
+      let photos = [];
+      if (r.photo_url) {
+        try {
+          const parsed = JSON.parse(r.photo_url);
+          photos = Array.isArray(parsed) ? parsed.map(f => `${BASE_URL}/uploads/${f}`) : [`${BASE_URL}/uploads/${r.photo_url}`];
+        } catch(e) {
+          photos = [`${BASE_URL}/uploads/${r.photo_url}`];
+        }
       }
-    }
-    return { ...r, photo_url: photos[0] || null, photos };
-  });
+      return { ...r, photo_url: photos[0] || null, photos };
+    });
 
-  res.json({
-    reviews: reviewsWithUrls,
-    stats: {
-      total: stats.total,
-      average: stats.average || 0,
-      breakdown: { 5: stats.r5, 4: stats.r4, 3: stats.r3, 2: stats.r2, 1: stats.r1 }
-    },
-    page: parseInt(page),
-    limit: parseInt(limit)
-  });
+    const stats = statsRes.rows[0];
+    res.json({
+      reviews,
+      stats: {
+        total: Number(stats.total),
+        average: Number(stats.average) || 0,
+        breakdown: { 5: Number(stats.r5), 4: Number(stats.r4), 3: Number(stats.r3), 2: Number(stats.r2), 1: Number(stats.r1) }
+      },
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
+  } catch(err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro interno' });
+  }
 });
 
 // GET /api/reviews/summary?product_ids=id1,id2,id3
-router.get('/summary', (req, res) => {
-  const { product_ids } = req.query;
-  if (!product_ids) return res.status(400).json({ error: 'product_ids é obrigatório' });
+router.get('/summary', async (req, res) => {
+  try {
+    const { product_ids } = req.query;
+    if (!product_ids) return res.status(400).json({ error: 'product_ids é obrigatório' });
 
-  const ids = product_ids.split(',').map(s => s.trim()).filter(Boolean).slice(0, 100);
-  if (ids.length === 0) return res.json({});
+    const ids = product_ids.split(',').map(s => s.trim()).filter(Boolean).slice(0, 100);
+    if (ids.length === 0) return res.json({});
 
-  const db = getDB();
-  const placeholders = ids.map(() => '?').join(',');
+    const db = getDB();
+    const placeholders = ids.map(() => '?').join(',');
+    const rowsRes = await db.execute({
+      sql: `SELECT product_id, COUNT(*) as total, ROUND(AVG(rating),1) as average FROM reviews WHERE product_id IN (${placeholders}) AND approved = 1 GROUP BY product_id`,
+      args: ids
+    });
 
-  const rows = db.prepare(`
-    SELECT product_id,
-           COUNT(*) as total,
-           ROUND(AVG(rating), 1) as average
-    FROM reviews
-    WHERE product_id IN (${placeholders}) AND approved = 1
-    GROUP BY product_id
-  `).all(...ids);
-
-  const result = {};
-  rows.forEach(r => {
-    result[r.product_id] = { total: r.total, average: r.average };
-  });
-
-  ids.forEach(id => {
-    if (!result[id]) result[id] = { total: 0, average: 0 };
-  });
-
-  res.json(result);
+    const result = {};
+    rowsRes.rows.forEach(r => {
+      result[r.product_id] = { total: Number(r.total), average: Number(r.average) };
+    });
+    ids.forEach(id => { if (!result[id]) result[id] = { total: 0, average: 0 }; });
+    res.json(result);
+  } catch(err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro interno' });
+  }
 });
 
 // POST /api/reviews
 router.post('/', submitLimiter, (req, res) => {
   upload.array('photos', 5)(req, res, function(err) {
-    if (err) {
-      return res.status(400).json({ error: err.message || 'Erro no upload.' });
-    }
+    if (err) return res.status(400).json({ error: err.message || 'Erro no upload.' });
     handlePost(req, res);
   });
 });
 
-function handlePost(req, res) {
+async function handlePost(req, res) {
   const { product_id, author_name, rating, comment } = req.body;
   const files = req.files || [];
-
   const cleanup = () => files.forEach(f => { try { fs.unlinkSync(f.path); } catch(e){} });
 
   if (!product_id || !author_name || !rating || !comment) {
     cleanup();
     return res.status(400).json({ error: 'Campos obrigatórios: product_id, author_name, rating, comment' });
   }
-
   const ratingNum = parseInt(rating);
-  if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) {
-    cleanup();
-    return res.status(400).json({ error: 'Rating deve ser entre 1 e 5' });
-  }
-
-  if (author_name.trim().length < 2 || author_name.trim().length > 80) {
-    cleanup();
-    return res.status(400).json({ error: 'Nome deve ter entre 2 e 80 caracteres' });
-  }
-
-  if (comment.trim().length < 10 || comment.trim().length > 1000) {
-    cleanup();
-    return res.status(400).json({ error: 'Depoimento deve ter entre 10 e 1000 caracteres' });
-  }
+  if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) { cleanup(); return res.status(400).json({ error: 'Rating deve ser entre 1 e 5' }); }
+  if (author_name.trim().length < 2 || author_name.trim().length > 80) { cleanup(); return res.status(400).json({ error: 'Nome deve ter entre 2 e 80 caracteres' }); }
+  if (comment.trim().length < 10 || comment.trim().length > 1000) { cleanup(); return res.status(400).json({ error: 'Depoimento deve ter entre 10 e 1000 caracteres' }); }
 
   const photoJson = files.length > 0 ? JSON.stringify(files.map(f => f.filename)) : null;
 
-  const db = getDB();
-  const result = db.prepare(`
-    INSERT INTO reviews (product_id, author_name, rating, comment, photo_url)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(product_id.trim(), author_name.trim(), ratingNum, comment.trim(), photoJson);
-
-  res.status(201).json({
-    success: true,
-    message: 'Avaliação enviada com sucesso! Ela será publicada após aprovação.',
-    id: result.lastInsertRowid
-  });
+  try {
+    const db = getDB();
+    const result = await db.execute({
+      sql: `INSERT INTO reviews (product_id, author_name, rating, comment, photo_url) VALUES (?, ?, ?, ?, ?)`,
+      args: [product_id.trim(), author_name.trim(), ratingNum, comment.trim(), photoJson]
+    });
+    res.status(201).json({
+      success: true,
+      message: 'Avaliação enviada com sucesso! Ela será publicada após aprovação.',
+      id: Number(result.lastInsertRowid)
+    });
+  } catch(err) {
+    cleanup();
+    console.error(err);
+    res.status(500).json({ error: 'Erro ao salvar avaliação.' });
+  }
 }
 
 module.exports = router;

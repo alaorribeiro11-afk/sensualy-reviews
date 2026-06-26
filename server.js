@@ -9,8 +9,6 @@ const adminRouter = require('./routes/admin');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-initDB();
-
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -31,6 +29,11 @@ app.get('/', (req, res) => {
   res.redirect('/admin');
 });
 
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+initDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
+  });
+}).catch(err => {
+  console.error('Erro ao inicializar banco:', err);
+  process.exit(1);
 });
