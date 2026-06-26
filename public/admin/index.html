@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel Admin — Sensualy Reviews</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8f0f5; min-height: 100vh; color: #1a1a2e; }
+
+    /* Login */
+    #login-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .login-card { background: #fff; border-radius: 20px; padding: 48px 40px; width: 100%; max-width: 400px; box-shadow: 0 8px 40px rgba(233,30,140,0.12); text-align: center; }
+    .login-logo { font-size: 36px; margin-bottom: 8px; }
+    .login-title { font-size: 22px; font-weight: 800; color: #e91e8c; margin-bottom: 4px; }
+    .login-sub { font-size: 13px; color: #888; margin-bottom: 32px; }
+    .login-input { width: 100%; padding: 12px 16px; border: 1.5px solid #e0c0d8; border-radius: 10px; font-size: 15px; outline: none; margin-bottom: 16px; }
+    .login-input:focus { border-color: #e91e8c; }
+    .login-btn { width: 100%; padding: 13px; background: #e91e8c; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .login-btn:hover { background: #c0156f; }
+    .login-err { color: #c0392b; font-size: 13px; margin-top: 10px; display: none; }
+
+    /* Main */
+    #main-screen { display: none; }
+    header { background: linear-gradient(135deg, #e91e8c, #c0156f); color: #fff; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 12px rgba(233,30,140,0.2); }
+    .header-title { font-size: 18px; font-weight: 800; }
+    .header-sub { font-size: 12px; opacity: 0.8; }
+    .logout-btn { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+    .logout-btn:hover { background: rgba(255,255,255,0.35); }
+
+    .stats-bar { display: flex; gap: 16px; padding: 20px 32px; flex-wrap: wrap; }
+    .stat-card { background: #fff; border-radius: 12px; padding: 16px 24px; flex: 1; min-width: 140px; box-shadow: 0 1px 8px rgba(233,30,140,0.07); }
+    .stat-number { font-size: 32px; font-weight: 900; color: #e91e8c; }
+    .stat-label { font-size: 12px; color: #888; margin-top: 2px; }
+
+    .filters { display: flex; gap: 10px; padding: 0 32px 16px; flex-wrap: wrap; align-items: center; }
+    .filter-btn { padding: 8px 18px; border-radius: 8px; border: 1.5px solid #e91e8c; background: #fff; color: #e91e8c; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
+    .filter-btn.active, .filter-btn:hover { background: #e91e8c; color: #fff; }
+    .filter-badge { display: inline-block; background: #ff4500; color: #fff; font-size: 10px; border-radius: 999px; padding: 1px 5px; margin-left: 4px; vertical-align: middle; }
+
+    .reviews-container { padding: 0 32px 32px; display: flex; flex-direction: column; gap: 14px; }
+
+    .review-card { background: #fff; border-radius: 14px; padding: 20px 24px; box-shadow: 0 1px 8px rgba(233,30,140,0.06); border-left: 4px solid #e0c0d8; }
+    .review-card.pending { border-left-color: #f39c12; }
+    .review-card.approved { border-left-color: #27ae60; }
+
+    .review-top { display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap; }
+    .review-avatar { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, #e91e8c, #f472b6); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 17px; flex-shrink: 0; }
+    .review-info { flex: 1; }
+    .review-author { font-weight: 700; font-size: 15px; }
+    .review-meta { font-size: 12px; color: #aaa; margin-top: 2px; }
+    .review-product { font-size: 12px; color: #e91e8c; font-weight: 600; }
+    .review-stars { display: flex; gap: 2px; margin: 6px 0 4px; }
+    .star { font-size: 16px; }
+    .star.f { color: #f4a800; }
+    .star.e { color: #ddd; }
+    .review-status { padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+    .review-status.pending { background: #fff3cd; color: #856404; }
+    .review-status.approved { background: #d4edda; color: #155724; }
+    .review-comment { font-size: 14px; color: #444; line-height: 1.6; margin: 10px 0; }
+    .review-photo { max-width: 120px; max-height: 120px; border-radius: 8px; object-fit: cover; cursor: pointer; border: 1px solid #f0d0e6; margin-top: 8px; }
+    .review-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+    .btn { padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
+    .btn-approve { background: #27ae60; color: #fff; }
+    .btn-approve:hover { background: #1e8449; }
+    .btn-reject { background: #e74c3c; color: #fff; }
+    .btn-reject:hover { background: #c0392b; }
+    .btn-delete { background: #f0f0f0; color: #555; }
+    .btn-delete:hover { background: #ddd; }
+
+    .empty-state { text-align: center; padding: 60px; color: #bbb; font-size: 16px; }
+    .loading { text-align: center; padding: 40px; color: #e91e8c; }
+
+    .lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; }
+    .lightbox.open { display: flex; }
+    .lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 12px; }
+    .lightbox-close { position: absolute; top: 20px; right: 28px; color: #fff; font-size: 36px; cursor: pointer; }
+
+    .pagination { display: flex; justify-content: center; gap: 8px; padding: 0 32px 32px; flex-wrap: wrap; }
+    .pg-btn { padding: 8px 16px; border: 1.5px solid #e91e8c; border-radius: 8px; background: #fff; color: #e91e8c; cursor: pointer; font-size: 14px; font-weight: 600; }
+    .pg-btn:hover, .pg-btn.active { background: #e91e8c; color: #fff; }
+
+    @media (max-width: 600px) {
+      .stats-bar, .filters, .reviews-container, .pagination { padding-left: 16px; padding-right: 16px; }
+      header { padding: 14px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">💄</div>
+    <div class="login-title">Sensualy Reviews</div>
+    <div class="login-sub">Painel de Moderação</div>
+    <input class="login-input" type="password" id="login-pass" placeholder="Senha de acesso" />
+    <button class="login-btn" onclick="doLogin()">Entrar</button>
+    <div class="login-err" id="login-err">Senha incorreta.</div>
+  </div>
+</div>
+
+<div id="main-screen">
+  <header>
+    <div>
+      <div class="header-title">💄 Sensualy Reviews — Admin</div>
+      <div class="header-sub">Moderação de avaliações</div>
+    </div>
+    <button class="logout-btn" onclick="doLogout()">Sair</button>
+  </header>
+
+  <div class="stats-bar" id="stats-bar">
+    <div class="stat-card"><div class="stat-number" id="st-total">—</div><div class="stat-label">Total</div></div>
+    <div class="stat-card"><div class="stat-number" id="st-pending">—</div><div class="stat-label">Aguardando</div></div>
+    <div class="stat-card"><div class="stat-number" id="st-approved">—</div><div class="stat-label">Aprovadas</div></div>
+    <div class="stat-card"><div class="stat-number" id="st-avg">—</div><div class="stat-label">Nota Média</div></div>
+  </div>
+
+  <div class="filters">
+    <button class="filter-btn active" id="btn-pending" onclick="setFilter('pending')">Aguardando <span class="filter-badge" id="badge-pending">0</span></button>
+    <button class="filter-btn" id="btn-approved" onclick="setFilter('approved')">Aprovadas</button>
+    <button class="filter-btn" id="btn-all" onclick="setFilter('all')">Todas</button>
+  </div>
+
+  <div class="reviews-container" id="reviews-container">
+    <div class="loading">Carregando...</div>
+  </div>
+
+  <div class="pagination" id="pagination"></div>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <span class="lightbox-close" onclick="document.getElementById('lightbox').classList.remove('open')">×</span>
+  <img id="lightbox-img" src="" alt="" />
+</div>
+
+<script>
+  var API_BASE = '';
+  var token = localStorage.getItem('sr_admin_token') || '';
+  var currentFilter = 'pending';
+  var currentPage = 1;
+  var LIMIT = 20;
+
+  function getApiBase() {
+    return window.location.origin;
+  }
+
+  function doLogin() {
+    var pass = document.getElementById('login-pass').value;
+    fetch(getApiBase() + '/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pass })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.token) {
+        token = d.token;
+        localStorage.setItem('sr_admin_token', token);
+        showMain();
+      } else {
+        document.getElementById('login-err').style.display = 'block';
+      }
+    })
+    .catch(function() {
+      document.getElementById('login-err').style.display = 'block';
+    });
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') doLogin();
+  });
+
+  function doLogout() {
+    localStorage.removeItem('sr_admin_token');
+    token = '';
+    document.getElementById('main-screen').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+  }
+
+  function showMain() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('main-screen').style.display = 'block';
+    loadStats();
+    loadReviews(1);
+  }
+
+  function authHeaders() {
+    return { 'Content-Type': 'application/json', 'x-admin-token': token };
+  }
+
+  function loadStats() {
+    fetch(getApiBase() + '/api/admin/stats', { headers: authHeaders() })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        document.getElementById('st-total').textContent = d.total || 0;
+        document.getElementById('st-pending').textContent = d.pending || 0;
+        document.getElementById('st-approved').textContent = d.approved || 0;
+        document.getElementById('st-avg').textContent = d.avg_rating ? d.avg_rating.toFixed(1) : '—';
+        document.getElementById('badge-pending').textContent = d.pending || 0;
+      });
+  }
+
+  function setFilter(f) {
+    currentFilter = f;
+    ['pending','approved','all'].forEach(function(x) {
+      document.getElementById('btn-' + x).classList.toggle('active', x === f);
+    });
+    loadReviews(1);
+  }
+
+  function loadReviews(page) {
+    currentPage = page;
+    var container = document.getElementById('reviews-container');
+    container.innerHTML = '<div class="loading">Carregando...</div>';
+
+    fetch(getApiBase() + '/api/admin/reviews?status=' + currentFilter + '&page=' + page + '&limit=' + LIMIT, { headers: authHeaders() })
+      .then(function(r) {
+        if (r.status === 401) { doLogout(); return null; }
+        return r.json();
+      })
+      .then(function(d) {
+        if (!d) return;
+        renderReviews(d.reviews, d.total);
+      })
+      .catch(function() {
+        container.innerHTML = '<div class="empty-state">Erro ao carregar avaliações.</div>';
+      });
+  }
+
+  function starsHTML(r) {
+    var h = '';
+    for (var i = 1; i <= 5; i++) h += '<span class="star ' + (i <= r ? 'f' : 'e') + '">★</span>';
+    return h;
+  }
+
+  function escapeHTML(str) {
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/\n/g,'<br>');
+  }
+
+  function renderReviews(reviews, total) {
+    var container = document.getElementById('reviews-container');
+    if (!reviews.length) {
+      container.innerHTML = '<div class="empty-state">Nenhuma avaliação neste filtro. ✅</div>';
+      document.getElementById('pagination').innerHTML = '';
+      return;
+    }
+
+    container.innerHTML = reviews.map(function(r) {
+      var initial = r.author_name.trim()[0].toUpperCase();
+      var photoHTML = r.photo_url ? '<br><img class="review-photo" src="' + r.photo_url + '" onclick="openLightbox(\'' + r.photo_url + '\')" alt="Foto" />' : '';
+      var status = r.approved ? 'approved' : 'pending';
+      var statusLabel = r.approved ? 'Aprovada' : 'Aguardando';
+
+      var actionsHTML = '';
+      if (!r.approved) {
+        actionsHTML += '<button class="btn btn-approve" onclick="approve(' + r.id + ')">✅ Aprovar</button>';
+        actionsHTML += '<button class="btn btn-reject" onclick="reject(' + r.id + ')">❌ Rejeitar</button>';
+      } else {
+        actionsHTML += '<button class="btn btn-delete" onclick="del(' + r.id + ')">🗑️ Remover</button>';
+      }
+
+      return '<div class="review-card ' + status + '" id="rc-' + r.id + '">' +
+        '<div class="review-top">' +
+          '<div class="review-avatar">' + initial + '</div>' +
+          '<div class="review-info">' +
+            '<div class="review-author">' + escapeHTML(r.author_name) + '</div>' +
+            '<div class="review-meta">' + r.created_at + '</div>' +
+            '<div class="review-product">Produto: ' + escapeHTML(r.product_id) + '</div>' +
+            '<div class="review-stars">' + starsHTML(r.rating) + '</div>' +
+          '</div>' +
+          '<span class="review-status ' + status + '">' + statusLabel + '</span>' +
+        '</div>' +
+        '<div class="review-comment">' + escapeHTML(r.comment) + '</div>' +
+        photoHTML +
+        '<div class="review-actions">' + actionsHTML + '</div>' +
+      '</div>';
+    }).join('');
+
+    var totalPages = Math.ceil(total / LIMIT);
+    var pag = document.getElementById('pagination');
+    if (totalPages <= 1) { pag.innerHTML = ''; return; }
+
+    var html = '';
+    if (currentPage > 1) html += '<button class="pg-btn" onclick="loadReviews(' + (currentPage - 1) + ')">← Anterior</button>';
+    for (var i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+      html += '<button class="pg-btn' + (i === currentPage ? ' active' : '') + '" onclick="loadReviews(' + i + ')">' + i + '</button>';
+    }
+    if (currentPage < totalPages) html += '<button class="pg-btn" onclick="loadReviews(' + (currentPage + 1) + ')">Próxima →</button>';
+    pag.innerHTML = html;
+  }
+
+  function approve(id) {
+    fetch(getApiBase() + '/api/admin/reviews/' + id + '/approve', { method: 'PUT', headers: authHeaders() })
+      .then(function(r) { return r.json(); })
+      .then(function() { loadReviews(currentPage); loadStats(); });
+  }
+
+  function reject(id) {
+    if (!confirm('Rejeitar e excluir esta avaliação?')) return;
+    fetch(getApiBase() + '/api/admin/reviews/' + id + '/reject', { method: 'PUT', headers: authHeaders() })
+      .then(function(r) { return r.json(); })
+      .then(function() { loadReviews(currentPage); loadStats(); });
+  }
+
+  function del(id) {
+    if (!confirm('Remover esta avaliação permanentemente?')) return;
+    fetch(getApiBase() + '/api/admin/reviews/' + id, { method: 'DELETE', headers: authHeaders() })
+      .then(function(r) { return r.json(); })
+      .then(function() { loadReviews(currentPage); loadStats(); });
+  }
+
+  function openLightbox(url) {
+    document.getElementById('lightbox-img').src = url;
+    document.getElementById('lightbox').classList.add('open');
+  }
+
+  if (token) {
+    fetch(getApiBase() + '/api/admin/stats', { headers: authHeaders() })
+      .then(function(r) { if (r.ok) showMain(); })
+      .catch(function() {});
+  }
+</script>
+</body>
+</html>

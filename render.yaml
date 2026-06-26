@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: sensualy-reviews
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: ADMIN_PASSWORD
+        generateValue: false
+      - key: BASE_URL
+        generateValue: false

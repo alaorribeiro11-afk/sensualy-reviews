@@ -1,0 +1,112 @@
+<script>
+(function(){
+  var API='https://sensualy-reviews.onrender.com';
+
+  function css(){
+    if(document.getElementById('sr-cat-css'))return;
+    var s=document.createElement('style');
+    s.id='sr-cat-css';
+    s.textContent='.sr-cat{display:flex;align-items:center;gap:4px;font-size:18px;margin-top:6px;margin-bottom:4px;line-height:1}.sr-cs{color:#f4a800}.sr-ce{color:#ddd}.sr-ca{font-size:14px;font-weight:700;color:#e91e8c;margin-left:3px}.sr-cn{font-size:12px;color:#999}';
+    document.head.appendChild(s);
+  }
+
+  function stars(r){
+    var h='';
+    for(var i=1;i<=5;i++)h+='<span class="'+(i<=Math.round(r)?'sr-cs':'sr-ce')+'">★</span>';
+    return h;
+  }
+
+  function slugFromUrl(url){
+    try{return new URL(url).pathname.replace(/^\/|\/$/g,'');}catch(e){return'';}
+  }
+
+  function findCards(){
+    var sels=[
+      '.listagem-linha a[class*="prod-cat"]',
+      '.listagem-linha a[href]',
+      'li[class*="listagem"] a[href]',
+      '[class*="listagem-linha"] a[href]',
+      'a[href*="/"][class*="prod"]',
+      '.produto a[href]',
+      '.product-item a',
+      '.showcase-item a'
+    ];
+    for(var i=0;i<sels.length;i++){
+      var els=document.querySelectorAll(sels[i]);
+      var filtered=Array.from(els).filter(function(a){
+        return a.href&&a.href.indexOf(window.location.hostname)>-1&&!a.href.match(/#|\?/);
+      });
+      if(filtered.length>0)return filtered;
+    }
+    return[];
+  }
+
+  function findContainer(card){
+    var sels=[
+      '[class*="price"]','[class*="name"]','[class*="title"]',
+      'p','span','h2','h3','h4'
+    ];
+    for(var i=0;i<sels.length;i++){
+      var el=card.closest('li,div,article');
+      if(!el)continue;
+      var found=el.querySelector(sels[i]);
+      if(found)return found;
+    }
+    return card;
+  }
+
+  function run(){
+    css();
+    var cards=findCards();
+    if(!cards.length)return;
+
+    var map={};
+    var slugs=[];
+    cards.forEach(function(a){
+      var slug=slugFromUrl(a.href);
+      if(!slug||map[slug])return;
+      map[slug]=a;
+      slugs.push(slug);
+    });
+
+    if(!slugs.length)return;
+
+    fetch(API+'/api/reviews/summary?product_ids='+slugs.join(','))
+      .then(function(r){return r.json();})
+      .then(function(data){
+        Object.keys(data).forEach(function(slug){
+          var a=map[slug];
+          if(!a)return;
+          var info=data[slug];
+          var wrap=a.closest('li,article')||a.parentElement;
+          if(!wrap||wrap.querySelector('.sr-cat'))return;
+
+          var div=document.createElement('div');
+          div.className='sr-cat';
+
+          if(info.total>0){
+            div.innerHTML=stars(info.average)+
+              '<span class="sr-ca">'+info.average.toFixed(1)+'</span>'+
+              '<span class="sr-cn">('+info.total+')</span>';
+          } else {
+            div.innerHTML='<span class="sr-cn">Sem avaliações</span>';
+          }
+
+          var priceEl=wrap.querySelector('.info-produto,[class*="info-produto"],[class*="price"],[class*="preco"],[class*="valor"]');
+          if(priceEl){
+            priceEl.parentNode.insertBefore(div,priceEl);
+          } else {
+            wrap.appendChild(div);
+          }
+        });
+      })
+      .catch(function(){});
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',run);
+  } else {
+    run();
+  }
+})();
+</script>
