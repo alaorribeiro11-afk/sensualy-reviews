@@ -30,9 +30,9 @@ const submitLimiter = rateLimit({
   message: { error: 'Muitas avaliações enviadas. Tente novamente em 1 hora.' }
 });
 
+app.post('/api/reviews', submitLimiter);
 app.use('/api/reviews', reviewsRouter);
 app.use('/api/admin', adminRouter);
-app.post('/api/reviews', submitLimiter);
 
 app.get('/', (req, res) => {
   res.redirect('/admin');

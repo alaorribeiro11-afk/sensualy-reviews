@@ -120,7 +120,16 @@ router.get('/summary', (req, res) => {
 });
 
 // POST /api/reviews
-router.post('/', upload.array('photos', 5), (req, res) => {
+router.post('/', (req, res) => {
+  upload.array('photos', 5)(req, res, function(err) {
+    if (err) {
+      return res.status(400).json({ error: err.message || 'Erro no upload.' });
+    }
+    handlePost(req, res);
+  });
+});
+
+function handlePost(req, res) {
   const { product_id, author_name, rating, comment } = req.body;
   const files = req.files || [];
 
@@ -160,6 +169,6 @@ router.post('/', upload.array('photos', 5), (req, res) => {
     message: 'Avaliação enviada com sucesso! Ela será publicada após aprovação.',
     id: result.lastInsertRowid
   });
-});
+}
 
 module.exports = router;
