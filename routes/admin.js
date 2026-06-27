@@ -1,24 +1,8 @@
 const express = require('express');
 const { getDB } = require('../db');
-const path = require('path');
-const fs = require('fs');
-const multer = require('multer');
-const { v4: uuidv4 } = require('uuid');
+const { upload } = require('../cloudinary');
 
 const router = express.Router();
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = process.env.UPLOADS_DIR || path.join(__dirname, '../uploads');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${uuidv4()}${ext}`);
-  }
-});
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'sensualy2024';
 
 async function authMiddleware(req, res, next) {
@@ -66,14 +50,13 @@ router.get('/reviews', authMiddleware, async (req, res) => {
       db.execute({ sql: `SELECT COUNT(*) as c FROM reviews ${where}`, args })
     ]);
 
-    const BASE_URL = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
     const reviews = reviewsRes.rows.map(r => {
       let photos = [];
       if (r.photo_url) {
         try {
           const parsed = JSON.parse(r.photo_url);
-          photos = Array.isArray(parsed) ? parsed.map(f => `${BASE_URL}/uploads/${f}`) : [`${BASE_URL}/uploads/${r.photo_url}`];
-        } catch(e) { photos = [`${BASE_URL}/uploads/${r.photo_url}`]; }
+          photos = Array.isArray(parsed) ? parsed : [r.photo_url];
+        } catch(e) { photos = [r.photo_url]; }
       }
       return { ...r, photo_url: photos[0] || null, photos };
     });
@@ -123,9 +106,9 @@ router.put('/reviews/:id/photo', authMiddleware, (req, res) => {
       const db = getDB();
       const rev = await db.execute({ sql: 'SELECT photo_url FROM reviews WHERE id = ?', args: [req.params.id] });
       if (!rev.rows.length) return res.status(404).json({ error: 'Avaliação não encontrada' });
-      await db.execute({ sql: 'UPDATE reviews SET photo_url = ? WHERE id = ?', args: [req.file.filename, req.params.id] });
-      const BASE_URL = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
-      res.json({ success: true, photo_url: `${BASE_URL}/uploads/${req.file.filename}` });
+      const photoUrl = req.file.path || req.file.secure_url;
+      await db.execute({ sql: 'UPDATE reviews SET photo_url = ? WHERE id = ?', args: [photoUrl, req.params.id] });
+      res.json({ success: true, photo_url: photoUrl });
     } catch(e) { console.error(e); res.status(500).json({ error: 'Erro interno' }); }
   });
 });

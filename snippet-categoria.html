@@ -22,14 +22,15 @@
 
   function findCards(){
     var sels=[
+      '.produto-sobrepor a[href]',
+      '[class*="produto-sobrepor"] a[href]',
       '.listagem-linha a[class*="prod-cat"]',
       '.listagem-linha a[href]',
       'li[class*="listagem"] a[href]',
       '[class*="listagem-linha"] a[href]',
       'a[href*="/"][class*="prod"]',
       '.produto a[href]',
-      '.product-item a',
-      '.showcase-item a'
+      '.product-item a'
     ];
     for(var i=0;i<sels.length;i++){
       var els=document.querySelectorAll(sels[i]);

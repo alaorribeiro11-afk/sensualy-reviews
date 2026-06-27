@@ -1,10 +1,7 @@
 const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
 const { getDB } = require('../db');
+const { upload } = require('../cloudinary');
 
 const submitLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -13,32 +10,6 @@ const submitLimiter = rateLimit({
 });
 
 const router = express.Router();
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = process.env.UPLOADS_DIR || path.join(__dirname, '../uploads');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${uuidv4()}${ext}`);
-  }
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (allowed.includes(ext)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Apenas imagens são permitidas (jpg, png, webp, gif)'));
-    }
-  }
-});
 
 // GET /api/reviews?product_id=xxx&page=1&limit=10
 router.get('/', async (req, res) => {
@@ -60,15 +31,14 @@ router.get('/', async (req, res) => {
       })
     ]);
 
-    const BASE_URL = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
     const reviews = reviewsRes.rows.map(r => {
       let photos = [];
       if (r.photo_url) {
         try {
           const parsed = JSON.parse(r.photo_url);
-          photos = Array.isArray(parsed) ? parsed.map(f => `${BASE_URL}/uploads/${f}`) : [`${BASE_URL}/uploads/${r.photo_url}`];
+          photos = Array.isArray(parsed) ? parsed : [r.photo_url];
         } catch(e) {
-          photos = [`${BASE_URL}/uploads/${r.photo_url}`];
+          photos = [r.photo_url];
         }
       }
       return { ...r, photo_url: photos[0] || null, photos };
@@ -134,21 +104,20 @@ async function handlePost(req, res) {
   const file = req.file || null;
 
   if (!product_id || !author_name || !rating || !comment) {
-    if (file) try { fs.unlinkSync(file.path); } catch(e) {}
     return res.status(400).json({ error: 'Campos obrigatórios: product_id, author_name, rating, comment' });
   }
   const ratingNum = parseInt(rating);
-  if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) { if (file) try { fs.unlinkSync(file.path); } catch(e) {} return res.status(400).json({ error: 'Rating deve ser entre 1 e 5' }); }
-  if (author_name.trim().length < 2 || author_name.trim().length > 80) { if (file) try { fs.unlinkSync(file.path); } catch(e) {} return res.status(400).json({ error: 'Nome deve ter entre 2 e 80 caracteres' }); }
-  if (comment.trim().length < 10 || comment.trim().length > 1000) { if (file) try { fs.unlinkSync(file.path); } catch(e) {} return res.status(400).json({ error: 'Depoimento deve ter entre 10 e 1000 caracteres' }); }
+  if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) return res.status(400).json({ error: 'Rating deve ser entre 1 e 5' });
+  if (author_name.trim().length < 2 || author_name.trim().length > 80) return res.status(400).json({ error: 'Nome deve ter entre 2 e 80 caracteres' });
+  if (comment.trim().length < 10 || comment.trim().length > 1000) return res.status(400).json({ error: 'Depoimento deve ter entre 10 e 1000 caracteres' });
 
-  const photoFilename = file ? file.filename : null;
+  const photoUrl = file ? (file.path || file.secure_url || null) : null;
 
   try {
     const db = getDB();
     const result = await db.execute({
       sql: `INSERT INTO reviews (product_id, author_name, rating, comment, photo_url) VALUES (?, ?, ?, ?, ?)`,
-      args: [product_id.trim(), author_name.trim(), ratingNum, comment.trim(), photoFilename]
+      args: [product_id.trim(), author_name.trim(), ratingNum, comment.trim(), photoUrl]
     });
     res.status(201).json({
       success: true,
@@ -156,7 +125,6 @@ async function handlePost(req, res) {
       id: Number(result.lastInsertRowid)
     });
   } catch(err) {
-    if (file) try { fs.unlinkSync(file.path); } catch(e) {}
     console.error(err);
     res.status(500).json({ error: 'Erro ao salvar avaliação.' });
   }
