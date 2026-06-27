@@ -20,6 +20,11 @@ async function initDB() {
   const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
+  console.log('=== DIAGNÓSTICO TURSO ===');
+  console.log('TURSO_URL:', process.env.TURSO_URL || 'NÃO DEFINIDO');
+  console.log('TURSO_TOKEN:', process.env.TURSO_TOKEN ? 'definido (' + process.env.TURSO_TOKEN.length + ' chars)' : 'NÃO DEFINIDO');
+  console.log('=========================');
+
   const db = getDB();
 
   await db.executeMultiple(`
