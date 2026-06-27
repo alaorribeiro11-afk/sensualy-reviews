@@ -6,6 +6,8 @@ let _db = null;
 
 function getDB() {
   if (!_db) {
+    console.log('TURSO_URL:', process.env.TURSO_URL ? process.env.TURSO_URL.substring(0, 40) + '...' : 'NÃO DEFINIDO');
+    console.log('TURSO_TOKEN:', process.env.TURSO_TOKEN ? 'definido (' + process.env.TURSO_TOKEN.length + ' chars)' : 'NÃO DEFINIDO');
     _db = createClient({
       url: process.env.TURSO_URL,
       authToken: process.env.TURSO_TOKEN,
