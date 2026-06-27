@@ -173,20 +173,16 @@ router.post('/import-csv', authMiddleware, (req, res) => {
 // POST /api/admin/generate-reviews
 router.post('/generate-reviews', authMiddleware, async (req, res) => {
   try {
-    const { product_id, product_name, quantity = 5 } = req.body;
+    const { product_id, product_name, quantity = 5, prompt: customPrompt } = req.body;
     if (!product_id || !product_name) return res.status(400).json({ error: 'product_id e product_name são obrigatórios.' });
     const qty = Math.min(Math.max(parseInt(quantity) || 5, 1), 20);
 
     const OpenAI = require('openai');
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    const prompt = `Gere ${qty} depoimentos realistas de clientes brasileiros para o produto "${product_name}" de uma loja de produtos íntimos adultos chamada Sensualy Shop.
-Regras:
-- Cada depoimento deve ter nome feminino brasileiro, nota de 4 ou 5 estrelas e um comentário natural de 1 a 3 frases
-- Os comentários devem mencionar aspectos como: qualidade, entrega discreta, embalagem, facilidade de uso, custo-benefício, satisfação
-- Use linguagem natural, variada, sem repetição
-- Responda APENAS com um array JSON válido no formato:
-[{"author_name":"Nome","rating":5,"comment":"Texto do depoimento."}]`;
+    const defaultPrompt = `Gere {qty} depoimentos realistas de clientes brasileiros para o produto "{product_name}" de uma loja de produtos íntimos adultos chamada Sensualy Shop.\nRegras:\n- Cada depoimento deve ter nome feminino brasileiro, nota de 4 ou 5 estrelas e um comentário natural de 1 a 3 frases\n- Os comentários devem mencionar aspectos como: qualidade, entrega discreta, embalagem, facilidade de uso, custo-benefício, satisfação\n- Use linguagem natural, variada, sem repetição\n- Responda APENAS com um array JSON válido no formato:\n[{"author_name":"Nome","rating":5,"comment":"Texto do depoimento."}]`;
+    const promptTemplate = (customPrompt && customPrompt.length > 10) ? customPrompt : defaultPrompt;
+    const prompt = promptTemplate.replace(/\{qty\}/g, qty).replace(/\{product_name\}/g, product_name);
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',

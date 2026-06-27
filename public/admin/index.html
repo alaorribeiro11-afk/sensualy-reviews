@@ -107,6 +107,9 @@
     .ai-msg { font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 8px; display: none; margin-top: 10px; }
     .ai-msg.ok { background: #e6f9ee; color: #1a7f3c; }
     .ai-msg.err { background: #fdeaea; color: #c0392b; }
+    .ai-prompt { width: 100%; margin-top: 12px; padding: 10px 12px; border-radius: 8px; border: 1.5px solid #e0c0d8; font-size: 13px; outline: none; resize: vertical; min-height: 100px; font-family: sans-serif; }
+    .ai-prompt:focus { border-color: #e91e8c; }
+    .ai-prompt-label { font-size: 12px; font-weight: 600; color: #555; margin-top: 12px; display: block; }
 
     @media (max-width: 600px) {
       .stats-bar, .filters, .reviews-container, .pagination { padding-left: 16px; padding-right: 16px; }
@@ -169,6 +172,14 @@
       </div>
       <button class="btn btn-ai" id="btn-ai-generate" onclick="generateReviews()">✨ Gerar</button>
     </div>
+    <label class="ai-prompt-label">Prompt personalizado (use {qty}, {product_name} como variáveis)</label>
+    <textarea class="ai-prompt" id="ai-prompt">Gere {qty} depoimentos realistas de clientes brasileiros para o produto "{product_name}" de uma loja de produtos íntimos adultos chamada Sensualy Shop.
+Regras:
+- Cada depoimento deve ter nome feminino brasileiro, nota de 4 ou 5 estrelas e um comentário natural de 1 a 3 frases
+- Os comentários devem mencionar aspectos como: qualidade, entrega discreta, embalagem, facilidade de uso, custo-benefício, satisfação
+- Use linguagem natural, variada, sem repetição
+- Responda APENAS com um array JSON válido no formato:
+[{"author_name":"Nome","rating":5,"comment":"Texto do depoimento."}]</textarea>
     <div class="ai-msg" id="ai-msg"></div>
   </div>
 
@@ -408,10 +419,11 @@
     msg.textContent = 'Aguarde, a IA está gerando os depoimentos...';
     msg.className = 'ai-msg ok';
     msg.style.display = 'block';
+    var customPrompt = document.getElementById('ai-prompt').value.trim();
     fetch(getApiBase() + '/api/admin/generate-reviews', {
       method: 'POST',
       headers: Object.assign(authHeaders(), { 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ product_id: pid, product_name: pname, quantity: qty })
+      body: JSON.stringify({ product_id: pid, product_name: pname, quantity: qty, prompt: customPrompt })
     })
     .then(function(r) { return r.json(); })
     .then(function(d) {
