@@ -175,7 +175,7 @@ router.post('/generate-reviews', authMiddleware, async (req, res) => {
   try {
     const { product_id, product_name, quantity = 5, prompt: customPrompt } = req.body;
     if (!product_id || !product_name) return res.status(400).json({ error: 'product_id e product_name são obrigatórios.' });
-    const qty = Math.min(Math.max(parseInt(quantity) || 5, 1), 20);
+    const qty = Math.min(Math.max(parseInt(quantity) || 5, 1), 100);
 
     const OpenAI = require('openai');
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
