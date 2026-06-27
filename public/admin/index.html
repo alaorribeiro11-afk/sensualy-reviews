@@ -85,6 +85,14 @@
     .pagination { display: flex; justify-content: center; gap: 8px; padding: 0 32px 32px; flex-wrap: wrap; }
     .pg-btn { padding: 8px 16px; border: 1.5px solid #e91e8c; border-radius: 8px; background: #fff; color: #e91e8c; cursor: pointer; font-size: 14px; font-weight: 600; }
     .pg-btn:hover, .pg-btn.active { background: #e91e8c; color: #fff; }
+    .csv-section { margin: 0 32px 24px; background: #fff; border-radius: 14px; padding: 20px 24px; box-shadow: 0 1px 8px rgba(233,30,140,0.06); display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .csv-title { font-size: 14px; font-weight: 700; color: #1a1a2e; white-space: nowrap; }
+    .csv-input { display: none; }
+    .btn-csv { background: #e91e8c; color: #fff; }
+    .btn-csv:hover { background: #c0156f; }
+    .csv-msg { font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 8px; display: none; }
+    .csv-msg.ok { background: #e6f9ee; color: #1a7f3c; }
+    .csv-msg.err { background: #fdeaea; color: #c0392b; }
 
     @media (max-width: 600px) {
       .stats-bar, .filters, .reviews-container, .pagination { padding-left: 16px; padding-right: 16px; }
@@ -128,6 +136,13 @@
     <select class="product-select" id="product-filter" onchange="setProduct(this.value)">
       <option value="">Todos os produtos</option>
     </select>
+  </div>
+
+  <div class="csv-section">
+    <span class="csv-title">📥 Importar CSV</span>
+    <button class="btn btn-csv" onclick="document.getElementById('csv-file-input').click()">Selecionar arquivo .csv</button>
+    <input type="file" id="csv-file-input" class="csv-input" accept=".csv,text/csv" onchange="importCSV(this)" />
+    <span class="csv-msg" id="csv-msg"></span>
   </div>
 
   <div class="reviews-container" id="reviews-container">
@@ -344,6 +359,41 @@
     fetch(getApiBase() + '/api/admin/reviews/' + id, { method: 'DELETE', headers: authHeaders() })
       .then(function(r) { return r.json(); })
       .then(function() { loadReviews(currentPage); loadStats(); });
+  }
+
+  function importCSV(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var msg = document.getElementById('csv-msg');
+    msg.textContent = 'Importando...';
+    msg.className = 'csv-msg ok';
+    msg.style.display = 'inline-block';
+    var fd = new FormData();
+    fd.append('csv', file);
+    fetch(getApiBase() + '/api/admin/import-csv', {
+      method: 'POST',
+      headers: { 'x-admin-token': token },
+      body: fd
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.success) {
+        msg.textContent = '✅ ' + d.inserted + ' inseridos, ' + d.ignored + ' ignorados.';
+        msg.className = 'csv-msg ok';
+        loadStats();
+        loadReviews(currentPage);
+        loadProducts();
+      } else {
+        msg.textContent = '❌ ' + (d.error || 'Erro ao importar.');
+        msg.className = 'csv-msg err';
+      }
+      input.value = '';
+    })
+    .catch(function() {
+      msg.textContent = '❌ Erro ao enviar arquivo.';
+      msg.className = 'csv-msg err';
+      input.value = '';
+    });
   }
 
   function uploadPhoto(id, input) {

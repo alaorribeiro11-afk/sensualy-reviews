@@ -113,6 +113,63 @@ router.put('/reviews/:id/photo', authMiddleware, (req, res) => {
   });
 });
 
+// POST /api/admin/import-csv
+const multerMemory = require('multer')({ storage: require('multer').memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
+
+router.post('/import-csv', authMiddleware, (req, res) => {
+  multerMemory.single('csv')(req, res, async function(err) {
+    if (err) return res.status(400).json({ error: err.message });
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+
+    try {
+      const content = req.file.buffer.toString('utf-8').replace(/\r/g, '');
+      const lines = content.trim().split('\n').filter(l => l.trim());
+      const firstLine = lines[0];
+      const sep = firstLine.includes(';') ? ';' : ',';
+
+      function parseLine(line) {
+        const vals = [];
+        let cur = '', inQ = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') { inQ = !inQ; }
+          else if (ch === sep && !inQ) { vals.push(cur.trim()); cur = ''; }
+          else { cur += ch; }
+        }
+        vals.push(cur.trim());
+        return vals.map(v => v.replace(/^"|"$/g, ''));
+      }
+
+      const headers = parseLine(firstLine);
+      const rows = lines.slice(1).filter(l => l.trim()).map(l => {
+        const vals = parseLine(l);
+        const obj = {};
+        headers.forEach((h, i) => obj[h] = vals[i] || '');
+        return obj;
+      });
+
+      const db = getDB();
+      let inserted = 0, ignored = 0;
+      for (const r of rows) {
+        const pid = (r.product_id || '').trim();
+        const name = (r.author_name || '').trim();
+        const rating = parseInt(r.rating);
+        const comment = (r.comment || '').trim();
+        const approved = r.approved !== undefined ? parseInt(r.approved) : 1;
+        if (!pid || !name || !comment || isNaN(rating)) { ignored++; continue; }
+        try {
+          await db.execute({
+            sql: 'INSERT INTO reviews (product_id, author_name, rating, comment, approved) VALUES (?, ?, ?, ?, ?)',
+            args: [pid, name, rating, comment, approved]
+          });
+          inserted++;
+        } catch(e) { ignored++; }
+      }
+      res.json({ success: true, inserted, ignored });
+    } catch(e) { console.error(e); res.status(500).json({ error: 'Erro ao processar CSV.' }); }
+  });
+});
+
 // GET /api/admin/products
 router.get('/products', authMiddleware, async (req, res) => {
   try {
