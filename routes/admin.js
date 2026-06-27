@@ -2,8 +2,23 @@ const express = require('express');
 const { getDB } = require('../db');
 const path = require('path');
 const fs = require('fs');
+const multer = require('multer');
+const { v4: uuidv4 } = require('uuid');
 
 const router = express.Router();
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = process.env.UPLOADS_DIR || path.join(__dirname, '../uploads');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${uuidv4()}${ext}`);
+  }
+});
+const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'sensualy2024';
 
 async function authMiddleware(req, res, next) {
@@ -97,6 +112,22 @@ router.delete('/reviews/:id', authMiddleware, async (req, res) => {
     await db.execute({ sql: 'DELETE FROM reviews WHERE id = ?', args: [req.params.id] });
     res.json({ success: true });
   } catch(e) { res.status(500).json({ error: 'Erro interno' }); }
+});
+
+// PUT /api/admin/reviews/:id/photo
+router.put('/reviews/:id/photo', authMiddleware, (req, res) => {
+  upload.single('photo')(req, res, async function(err) {
+    if (err) return res.status(400).json({ error: err.message || 'Erro no upload.' });
+    if (!req.file) return res.status(400).json({ error: 'Nenhuma foto enviada.' });
+    try {
+      const db = getDB();
+      const rev = await db.execute({ sql: 'SELECT photo_url FROM reviews WHERE id = ?', args: [req.params.id] });
+      if (!rev.rows.length) return res.status(404).json({ error: 'Avaliação não encontrada' });
+      await db.execute({ sql: 'UPDATE reviews SET photo_url = ? WHERE id = ?', args: [req.file.filename, req.params.id] });
+      const BASE_URL = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+      res.json({ success: true, photo_url: `${BASE_URL}/uploads/${req.file.filename}` });
+    } catch(e) { console.error(e); res.status(500).json({ error: 'Erro interno' }); }
+  });
 });
 
 // GET /api/admin/stats
