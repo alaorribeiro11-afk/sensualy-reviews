@@ -113,6 +113,15 @@ router.put('/reviews/:id/photo', authMiddleware, (req, res) => {
   });
 });
 
+// GET /api/admin/products
+router.get('/products', authMiddleware, async (req, res) => {
+  try {
+    const db = getDB();
+    const r = await db.execute({ sql: 'SELECT DISTINCT product_id FROM reviews ORDER BY product_id', args: [] });
+    res.json({ products: r.rows.map(row => row.product_id) });
+  } catch(e) { res.status(500).json({ error: 'Erro interno' }); }
+});
+
 // GET /api/admin/stats
 router.get('/stats', authMiddleware, async (req, res) => {
   try {

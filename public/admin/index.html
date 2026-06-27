@@ -37,6 +37,8 @@
     .filter-btn { padding: 8px 18px; border-radius: 8px; border: 1.5px solid #e91e8c; background: #fff; color: #e91e8c; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
     .filter-btn.active, .filter-btn:hover { background: #e91e8c; color: #fff; }
     .filter-badge { display: inline-block; background: #ff4500; color: #fff; font-size: 10px; border-radius: 999px; padding: 1px 5px; margin-left: 4px; vertical-align: middle; }
+    .product-select { padding: 8px 14px; border-radius: 8px; border: 1.5px solid #e91e8c; background: #fff; color: #1a1a2e; font-size: 13px; font-weight: 600; cursor: pointer; outline: none; max-width: 320px; }
+    .product-select:focus { border-color: #c0156f; }
 
     .reviews-container { padding: 0 32px 32px; display: flex; flex-direction: column; gap: 14px; }
 
@@ -123,6 +125,9 @@
     <button class="filter-btn active" id="btn-pending" onclick="setFilter('pending')">Aguardando <span class="filter-badge" id="badge-pending">0</span></button>
     <button class="filter-btn" id="btn-approved" onclick="setFilter('approved')">Aprovadas</button>
     <button class="filter-btn" id="btn-all" onclick="setFilter('all')">Todas</button>
+    <select class="product-select" id="product-filter" onchange="setProduct(this.value)">
+      <option value="">Todos os produtos</option>
+    </select>
   </div>
 
   <div class="reviews-container" id="reviews-container">
@@ -141,6 +146,7 @@
   var API_BASE = '';
   var token = localStorage.getItem('sr_admin_token') || '';
   var currentFilter = 'pending';
+  var currentProduct = '';
   var currentPage = 1;
   var LIMIT = 20;
 
@@ -185,6 +191,26 @@
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('main-screen').style.display = 'block';
     loadStats();
+    loadProducts();
+    loadReviews(1);
+  }
+
+  function loadProducts() {
+    fetch(getApiBase() + '/api/admin/products', { headers: authHeaders() })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        var sel = document.getElementById('product-filter');
+        (d.products || []).forEach(function(p) {
+          var opt = document.createElement('option');
+          opt.value = p;
+          opt.textContent = p;
+          sel.appendChild(opt);
+        });
+      });
+  }
+
+  function setProduct(p) {
+    currentProduct = p;
     loadReviews(1);
   }
 
@@ -217,7 +243,10 @@
     var container = document.getElementById('reviews-container');
     container.innerHTML = '<div class="loading">Carregando...</div>';
 
-    fetch(getApiBase() + '/api/admin/reviews?status=' + currentFilter + '&page=' + page + '&limit=' + LIMIT, { headers: authHeaders() })
+    var url = getApiBase() + '/api/admin/reviews?status=' + currentFilter + '&page=' + page + '&limit=' + LIMIT;
+    if (currentProduct) url += '&product_id=' + encodeURIComponent(currentProduct);
+
+    fetch(url, { headers: authHeaders() })
       .then(function(r) {
         if (r.status === 401) { doLogout(); return null; }
         return r.json();
