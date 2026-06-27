@@ -93,6 +93,20 @@
     .csv-msg { font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 8px; display: none; }
     .csv-msg.ok { background: #e6f9ee; color: #1a7f3c; }
     .csv-msg.err { background: #fdeaea; color: #c0392b; }
+    .ai-section { margin: 0 32px 24px; background: #fff0f7; border-radius: 14px; padding: 20px 24px; box-shadow: 0 1px 8px rgba(233,30,140,0.06); border: 1.5px solid #f0d0e6; }
+    .ai-title { font-size: 14px; font-weight: 700; color: #1a1a2e; margin-bottom: 14px; }
+    .ai-fields { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+    .ai-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: #555; }
+    .ai-input { padding: 8px 12px; border-radius: 8px; border: 1.5px solid #e0c0d8; font-size: 13px; outline: none; }
+    .ai-input:focus { border-color: #e91e8c; }
+    .ai-input.wide { min-width: 260px; }
+    .ai-input.short { width: 70px; }
+    .btn-ai { background: linear-gradient(135deg, #e91e8c, #f472b6); color: #fff; border: none; }
+    .btn-ai:hover { background: linear-gradient(135deg, #c0156f, #e91e8c); }
+    .btn-ai:disabled { background: #ccc; cursor: not-allowed; }
+    .ai-msg { font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 8px; display: none; margin-top: 10px; }
+    .ai-msg.ok { background: #e6f9ee; color: #1a7f3c; }
+    .ai-msg.err { background: #fdeaea; color: #c0392b; }
 
     @media (max-width: 600px) {
       .stats-bar, .filters, .reviews-container, .pagination { padding-left: 16px; padding-right: 16px; }
@@ -136,6 +150,26 @@
     <select class="product-select" id="product-filter" onchange="setProduct(this.value)">
       <option value="">Todos os produtos</option>
     </select>
+  </div>
+
+  <div class="ai-section">
+    <div class="ai-title">🤖 Gerar Depoimentos com IA</div>
+    <div class="ai-fields">
+      <div class="ai-field">
+        <label>ID do Produto (slug)</label>
+        <input class="ai-input wide" id="ai-product-id" placeholder="ex: mini-vibrador-bullet" />
+      </div>
+      <div class="ai-field">
+        <label>Nome do Produto</label>
+        <input class="ai-input wide" id="ai-product-name" placeholder="ex: Mini Vibrador Bullet" />
+      </div>
+      <div class="ai-field">
+        <label>Quantidade</label>
+        <input class="ai-input short" id="ai-qty" type="number" value="5" min="1" max="20" />
+      </div>
+      <button class="btn btn-ai" id="btn-ai-generate" onclick="generateReviews()">✨ Gerar</button>
+    </div>
+    <div class="ai-msg" id="ai-msg"></div>
   </div>
 
   <div class="csv-section">
@@ -359,6 +393,47 @@
     fetch(getApiBase() + '/api/admin/reviews/' + id, { method: 'DELETE', headers: authHeaders() })
       .then(function(r) { return r.json(); })
       .then(function() { loadReviews(currentPage); loadStats(); });
+  }
+
+  function generateReviews() {
+    var pid = document.getElementById('ai-product-id').value.trim();
+    var pname = document.getElementById('ai-product-name').value.trim();
+    var qty = parseInt(document.getElementById('ai-qty').value) || 5;
+    var msg = document.getElementById('ai-msg');
+    var btn = document.getElementById('btn-ai-generate');
+    if (!pid) { msg.textContent = '❌ Informe o ID do produto.'; msg.className = 'ai-msg err'; msg.style.display = 'block'; return; }
+    if (!pname) { msg.textContent = '❌ Informe o nome do produto.'; msg.className = 'ai-msg err'; msg.style.display = 'block'; return; }
+    btn.disabled = true;
+    btn.textContent = '⏳ Gerando...';
+    msg.textContent = 'Aguarde, a IA está gerando os depoimentos...';
+    msg.className = 'ai-msg ok';
+    msg.style.display = 'block';
+    fetch(getApiBase() + '/api/admin/generate-reviews', {
+      method: 'POST',
+      headers: Object.assign(authHeaders(), { 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ product_id: pid, product_name: pname, quantity: qty })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      btn.disabled = false;
+      btn.textContent = '✨ Gerar';
+      if (d.success) {
+        msg.textContent = '✅ ' + d.inserted + ' depoimentos gerados e inseridos!';
+        msg.className = 'ai-msg ok';
+        loadStats();
+        loadReviews(currentPage);
+        loadProducts();
+      } else {
+        msg.textContent = '❌ ' + (d.error || 'Erro ao gerar.');
+        msg.className = 'ai-msg err';
+      }
+    })
+    .catch(function() {
+      btn.disabled = false;
+      btn.textContent = '✨ Gerar';
+      msg.textContent = '❌ Erro de conexão.';
+      msg.className = 'ai-msg err';
+    });
   }
 
   function importCSV(input) {

@@ -170,6 +170,52 @@ router.post('/import-csv', authMiddleware, (req, res) => {
   });
 });
 
+// POST /api/admin/generate-reviews
+router.post('/generate-reviews', authMiddleware, async (req, res) => {
+  try {
+    const { product_id, product_name, quantity = 5 } = req.body;
+    if (!product_id || !product_name) return res.status(400).json({ error: 'product_id e product_name são obrigatórios.' });
+    const qty = Math.min(Math.max(parseInt(quantity) || 5, 1), 20);
+
+    const OpenAI = require('openai');
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    const prompt = `Gere ${qty} depoimentos realistas de clientes brasileiros para o produto "${product_name}" de uma loja de produtos íntimos adultos chamada Sensualy Shop.
+Regras:
+- Cada depoimento deve ter nome feminino brasileiro, nota de 4 ou 5 estrelas e um comentário natural de 1 a 3 frases
+- Os comentários devem mencionar aspectos como: qualidade, entrega discreta, embalagem, facilidade de uso, custo-benefício, satisfação
+- Use linguagem natural, variada, sem repetição
+- Responda APENAS com um array JSON válido no formato:
+[{"author_name":"Nome","rating":5,"comment":"Texto do depoimento."}]`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.9,
+    });
+
+    const raw = completion.choices[0].message.content.trim();
+    const jsonMatch = raw.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return res.status(500).json({ error: 'Resposta inválida da IA.' });
+    const reviews = JSON.parse(jsonMatch[0]);
+
+    const db = getDB();
+    let inserted = 0;
+    for (const r of reviews) {
+      if (!r.author_name || !r.comment || !r.rating) continue;
+      await db.execute({
+        sql: 'INSERT INTO reviews (product_id, author_name, rating, comment, approved) VALUES (?, ?, ?, ?, 1)',
+        args: [product_id.trim(), r.author_name.trim(), parseInt(r.rating), r.comment.trim()]
+      });
+      inserted++;
+    }
+    res.json({ success: true, inserted, reviews });
+  } catch(e) {
+    console.error(e);
+    res.status(500).json({ error: 'Erro ao gerar depoimentos: ' + e.message });
+  }
+});
+
 // GET /api/admin/products
 router.get('/products', authMiddleware, async (req, res) => {
   try {
