@@ -51,7 +51,7 @@ router.get('/', async (req, res) => {
 
     const [reviewsRes, statsRes] = await Promise.all([
       db.execute({
-        sql: `SELECT id, author_name, rating, comment, photo_url, created_at FROM reviews WHERE product_id = ? AND approved = 1 ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+        sql: `SELECT id, author_name, rating, comment, photo_url, created_at FROM reviews WHERE product_id = ? AND approved = 1 ORDER BY CASE WHEN photo_url IS NOT NULL AND photo_url != '' THEN 0 ELSE 1 END, created_at DESC LIMIT ? OFFSET ?`,
         args: [product_id, parseInt(limit), offset]
       }),
       db.execute({
