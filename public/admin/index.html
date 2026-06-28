@@ -178,13 +178,23 @@
           <option value="unisex">Unisex</option>
         </select>
       </div>
+      <div class="ai-field">
+        <label>Notas</label>
+        <select class="ai-input" id="ai-notas">
+          <option value="5" selected>5</option>
+          <option value="4 a 5">4-5</option>
+          <option value="3 a 5">3-5</option>
+          <option value="2 a 5">2-5</option>
+          <option value="1 a 5">1-5</option>
+        </select>
+      </div>
       <button class="btn btn-ai" id="btn-ai-generate" onclick="generateReviews()">✨ Gerar</button>
     </div>
-    <label class="ai-prompt-label">Prompt personalizado (use {qty}, {product_name}, {publicosex} como variáveis)</label>
+    <label class="ai-prompt-label">Avaliação</label>
     <textarea class="ai-prompt" id="ai-prompt">Gere {qty} depoimentos realistas de clientes brasileiros para o produto "{product_name}" de uma loja de produtos íntimos adultos.
 Regras:
 - Cada depoimento deve ter nome e sobrenome {publicosex} brasileiro, não repita o nome.
-- Cada depoimento com nota de 4 a 5 estrelas sendo entre de 90% a 95% das avaliações positivas e um comentário natural de 2 a 6 frases.
+- Cada depoimento com notas {notas} estrelas e um comentário natural de 2 a 6 frases.
 - Os comentários devem mencionar aspectos como: qualidade, entrega discreta, embalagem, facilidade de uso, custo-benefício, satisfação.
 - Faça variação de alguns depoimentos sem nenhuma letra maiúscula nos inícios de frase e outros formatados corretamente.
 - Use linguagem natural, variada, sem repetição, em alguns depoimentos use linguagem abreviada como as pessoas usam, use gírias em alguns.
@@ -423,7 +433,8 @@ Regras:
     msg.className = 'ai-msg ok';
     msg.style.display = 'block';
     var publicosex = document.getElementById('ai-publicosex').value;
-    var customPrompt = document.getElementById('ai-prompt').value.trim().replace(/\{publicosex\}/g, publicosex);
+    var notas = document.getElementById('ai-notas').value;
+    var customPrompt = document.getElementById('ai-prompt').value.trim().replace(/\{publicosex\}/g, publicosex).replace(/\{notas\}/g, notas);
     fetch(getApiBase() + '/api/admin/generate-reviews', {
       method: 'POST',
       headers: Object.assign(authHeaders(), { 'Content-Type': 'application/json' }),
