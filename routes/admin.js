@@ -3,7 +3,10 @@ const { getDB } = require('../db');
 const { upload } = require('../cloudinary');
 
 const router = express.Router();
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'sensualy2024';
+const ADMIN_PASSWORDS = (process.env.ADMIN_PASSWORDS || process.env.ADMIN_PASSWORD || 'sensualy2024')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
 
 async function authMiddleware(req, res, next) {
   const token = req.headers['x-admin-token'] || req.query.token;
@@ -19,7 +22,7 @@ async function authMiddleware(req, res, next) {
 // POST /api/admin/login
 router.post('/login', async (req, res) => {
   const { password } = req.body;
-  if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Senha incorreta' });
+  if (!ADMIN_PASSWORDS.includes(password)) return res.status(401).json({ error: 'Senha incorreta' });
   try {
     const token = require('crypto').randomBytes(32).toString('hex');
     const db = getDB();

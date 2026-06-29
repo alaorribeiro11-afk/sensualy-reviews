@@ -11,7 +11,7 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary,
   params: {
-    folder: 'sensualy-reviews',
+    folder: process.env.CLOUDINARY_FOLDER || 'sensualy-reviews',
     allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
     transformation: [{ width: 800, height: 800, crop: 'limit', quality: 'auto' }],
   },
